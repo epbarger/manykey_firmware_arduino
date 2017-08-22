@@ -159,13 +159,7 @@ bool parsedIndexValid(byte index){
 }
 
 
-/* ---------------------------- Misc functions */
-void wipeArray(byte *arr, int len){
-  for (int i = 0; i < len; i++){
-    arr[i] = 0;   
-  }
-}
-
+/* -------------------------- EEPROM functions */
 void wipeEEPROM(){
   for (int i = 0; i < EEPROM.length(); i++) {
     EEPROM.write(i, 0);
@@ -197,6 +191,14 @@ void loadConfigFromEEPROM(){
   } else {
     wipeEEPROM();
     saveConfigToEEPROM();
+  }
+}
+
+
+/* ---------------------------- Misc functions */
+void wipeArray(byte *arr, int len){
+  for (int i = 0; i < len; i++){
+    arr[i] = 0;   
   }
 }
 
