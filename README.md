@@ -20,7 +20,7 @@ This is the first step of the [ManyKey Project](http://www.manykey.org). We're w
 You can configure regular ASCII letters/keys, as well as the modifiers [described here](https://www.arduino.cc/en/Reference/KeyboardModifiers).
 
 ## Serial protocol
-#### Read Keys (0x00)
+### Read Keys (0x00)
 
 _Request_
 
@@ -35,7 +35,7 @@ Start | Command | Switch Index | Key 1 .. Key N | Stop
 0xEE  | 0x00    | 0x00         | 0x98, 0x43, etc| 0xFF
 
 
-#### Write Keys (0x01)
+### Write Keys (0x01)
 
 _Request_
 
@@ -49,7 +49,7 @@ Start | Command | Switch Index | Key 1 .. Key N | Stop
 ----- | --------| ------------ | -------------- | ----
 0xEE  | 0x01    | 0x00         | 0x97, 0x43, etc| 0xFF
 
-#### Query Settings (0x02)
+### Query Settings (0x02)
 
 _Request_
 
