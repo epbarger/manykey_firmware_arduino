@@ -20,41 +20,48 @@ This is the first step of the [ManyKey Project](http://www.manykey.org). We're w
 You can configure regular ASCII letters/keys, as well as the modifiers [described here](https://www.arduino.cc/en/Reference/KeyboardModifiers).
 
 ## Serial protocol
-#### Read Keys
+#### Read Keys (0x00)
+
+_Request_
+
 Start | Command | Switch Index | Stop
 ----- | ------- | ------------ | ----
 0xEE  | 0x00    | 0x00         | 0xFF
 
-#### Write Keys
+_Response_
+
+Start | Command | Switch Index | Key 1 .. Key N | Stop
+----- | --------| ------------ | -------------- | ----
+0xEE  | 0x00    | 0x00         | 0x98, 0x43, etc| 0xFF
+
+
+#### Write Keys (0x01)
+
+_Request_
+
 Start | Command | Switch Index | Key 1 .. Key N | Stop
 ----- | ------- | ------------ | -------------- | ----
 0xEE  | 0x01    | 0x00         | 0x97, 0x43, etc| 0xFF
 
-#### Response
-Start | Response Type | Switch Index | Key 1 .. Key N | Stop
------ | ------------- | ------------ | -------------- | ----
-0xEE  | 0x00          | 0x00         | 0x97, 0x43, etc| 0xFF
+_Response_
 
-#### Examples
-What is the key configuration for index 1?
+Start | Command | Switch Index | Key 1 .. Key N | Stop
+----- | --------| ------------ | -------------- | ----
+0xEE  | 0x01    | 0x00         | 0x97, 0x43, etc| 0xFF
 
-__Send:__ ```0xEE, 0x00, 0x01, 0xFF```
+#### Query Settings (0x02)
 
+_Request_
 
-The key configuration for index 1 is 0x97 (A), and 0x43 (+).
+Start | Command | Stop
+----- | ------- | ----
+0xEE  | 0x02    | 0xFF
 
-__Response:__ ```0xEE, 0x00, 0x01, 0x97, 0x43, 0xFF```
+_Response_
 
-
-
-Set the key configuration for index 0 to be Left Control, c.
-
-__Send:__ ```0xEE, 0x01, 0x00, 0x80, 0x99, 0xFF```
-
-
-The key configuration for index 0 is 0x80 (Left Control), and 0x99 (c).
-
-__Response:__ ```0xEE, 0x00, 0x00, 0x80, 0x99, 0xFF```
+Start | Command | Switch Count | Max Keys Per Switch | Stop
+----- | ------- | ------------ | ------------------- | ----
+0xEE  | 0x02    | 0x03         | 0xA0                | 0xFF
 
 ## Contributing
 If you see an area of improvement for this project, please open an issue or PR! :D

@@ -1,6 +1,7 @@
 /* 
  * ManyKey firmware
- * See LICENSE file
+ * See README.md
+ * See LICENSE (MIT)
 */
 
 #include <Keyboard.h>
@@ -17,6 +18,7 @@
 #define SERIAL_END_BYTE 0xFF
 #define SERIAL_READ_COMMAND 0x00
 #define SERIAL_WRITE_COMMAND 0x01
+#define SERIAL_QUERY_SETTINGS_COMMAND 0x02
 
 
 /* --------- Button declarations and functions */
@@ -93,21 +95,6 @@ byte serialReadBuffer[SERIAL_BUFFER_LENGTH];
 byte serialWriteBuffer[SERIAL_BUFFER_LENGTH];
 bool dataAvailable = false;
 
-void writeSerial(button btn){
-  wipeArray(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
-  serialWriteBuffer[0] = 0xEE;
-  serialWriteBuffer[1] = 0x00;
-  serialWriteBuffer[2] = btn.index;
-  byte i = 0;
-  while (i < MAX_CHARS_PER_BUTTON){
-    if (btn.chars[i] == 0x00){ break; }
-    serialWriteBuffer[i+3] = btn.chars[i];
-    i++;
-  }
-  serialWriteBuffer[i+3] = 0xFF;
-  Serial.write(serialWriteBuffer, i+4);
-}
-
 void readSerial(){
   if (Serial.available() && !dataAvailable){
     Serial.readBytes(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
@@ -120,8 +107,11 @@ void processSerialBuffer(){
   if (serialWriteBuffer[0] == SERIAL_START_BYTE) { // start byte
     if (serialWriteBuffer[1] == SERIAL_READ_COMMAND) { // command byte
       if (parsedIndexValid(serialWriteBuffer[2])){ // button index byte
-        if (serialWriteBuffer[3] == SERIAL_END_BYTE) {
-          writeSerial(buttons[serialWriteBuffer[2]]);
+        for (byte i = 3; i < SERIAL_BUFFER_LENGTH; i++){
+          if (serialWriteBuffer[i] == SERIAL_END_BYTE) { // end byte
+            writeSerialSwitchStatus(buttons[serialWriteBuffer[2]], SERIAL_READ_COMMAND);
+            break;
+          }
         }
       }
     } else if (serialWriteBuffer[1] == SERIAL_WRITE_COMMAND) { // command byte
@@ -134,15 +124,47 @@ void processSerialBuffer(){
               buttons[serialWriteBuffer[2]].chars[j] = newChars[j];
             }
             saveConfigToEEPROM();
-            writeSerial(buttons[serialWriteBuffer[2]]);
+            writeSerialSwitchStatus(buttons[serialWriteBuffer[2]], SERIAL_WRITE_COMMAND);
             break;
           }
           newChars[i - 3] = serialWriteBuffer[i];
         }
       }
+    } else if (serialWriteBuffer[1] == SERIAL_QUERY_SETTINGS_COMMAND){
+      for (byte i = 2; i < SERIAL_BUFFER_LENGTH; i++){
+        if (serialWriteBuffer[i] == SERIAL_END_BYTE){ // end byte
+          writeSerialQuery();
+          break;
+        }
+      }
     }
   }
   discardSerialBuffer();
+}
+
+void writeSerialSwitchStatus(button btn, byte command){
+  wipeArray(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
+  serialWriteBuffer[0] = 0xEE;
+  serialWriteBuffer[1] = command;
+  serialWriteBuffer[2] = btn.index;
+  byte i = 0;
+  while (i < MAX_CHARS_PER_BUTTON){
+    if (btn.chars[i] == 0x00){ break; }
+    serialWriteBuffer[i+3] = btn.chars[i];
+    i++;
+  }
+  serialWriteBuffer[i+3] = 0xFF;
+  Serial.write(serialWriteBuffer, i+4);
+}
+
+void writeSerialQuery(){
+  wipeArray(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
+  serialWriteBuffer[0] = 0xEE;
+  serialWriteBuffer[1] = SERIAL_QUERY_SETTINGS_COMMAND;
+  serialWriteBuffer[2] = BUTTON_COUNT;
+  serialWriteBuffer[3] = MAX_CHARS_PER_BUTTON;
+  serialWriteBuffer[4] = 0xFF;
+  Serial.write(serialWriteBuffer, 5);
 }
 
 void discardSerialBuffer(){
