@@ -20,6 +20,7 @@ This is the first step of the [ManyKey Project](http://www.manykey.org). We're w
 You can configure regular ASCII letters/keys, as well as the modifiers [described here](https://www.arduino.cc/en/Reference/KeyboardModifiers).
 
 ## Serial protocol
+For sending hex over serial, I highly recommend the freeware program [CoolTerm](https://freeware.the-meiers.org/).
 ### Read Keys (0x00)
 
 _Request_
