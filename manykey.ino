@@ -4,6 +4,7 @@
  * See LICENSE (MIT)
 */
 
+#include <Arduboy2.h>
 #include <Keyboard.h>
 #include <EEPROM.h>
 
@@ -23,8 +24,8 @@
 
 /* --------- Button declarations and functions */
 /* Edit list of pins and count here */
-#define BUTTON_COUNT 3
-byte buttonPins[] = {2, 4, 6};
+#define BUTTON_COUNT 6
+byte buttonPins[] = {LEFT_BUTTON, RIGHT_BUTTON, UP_BUTTON, DOWN_BUTTON, A_BUTTON, B_BUTTON};
 
 typedef struct {
   bool state;
@@ -37,6 +38,8 @@ typedef struct {
 } button;
 button buttons[BUTTON_COUNT];
 bool buttonReadings[BUTTON_COUNT];
+
+Arduboy2 arduboy;
 
 void initButtons(){
   for (byte i = 0; i < BUTTON_COUNT; i++) {
@@ -67,7 +70,7 @@ void releaseChars(button btn){
 void updateButtons() {
   for (byte i = 0; i < BUTTON_COUNT; i++){
     // update button readings
-    buttonReadings[i] = !digitalRead(buttons[i].pin);
+    buttonReadings[i] = arduboy.pressed(buttons[i].pin);
     if (buttonReadings[i] != buttons[i].lastReading) {
       buttons[i].lastTime = millis();
     }
@@ -227,6 +230,7 @@ void wipeArray(byte *arr, int len){
 
 /* ---------------------------- Setup and loop */
 void setup() {
+  arduboy.begin();
   Keyboard.begin();
   Serial.begin(SERIAL_BAUD_RATE);
   Serial.setTimeout(10);
