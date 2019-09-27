@@ -1,7 +1,7 @@
 # ManyKey Firmware (Arduino/ATmega32u4)
 This is project is an easy way to get a macro keyboard project going very quickly.
 
-This is the first step of the [ManyKey Project](http://www.manykey.org). We're working on a cross-platform desktop application to configure the keys of any project using this firmware, without a serial terminal. Eventually we hope to offer open source hardware designs and guidance to make building projects like this as easy as possible.
+This is part of the [ManyKey Project](http://www.manykey.org). A cross-platform program to write to this firmware is available [here](https://github.com/ManyKeyOrg/manykey_writer).
 
 ## Features
 - Supports 10+ characters pressed simultaneously per switch (this can be changed very easily if you need more)
