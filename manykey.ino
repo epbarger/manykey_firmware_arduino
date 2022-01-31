@@ -1,10 +1,15 @@
-/* 
- * ManyKey firmware
- * See README.md
- * See LICENSE (MIT)
+/*
+   ManyKey firmware
+   See README.md
+   See LICENSE (MIT)
+
+   V1.1 Implement Intended Mouse Support    (R.Hirst 31/01/2022)
 */
 
+
+
 #include <Keyboard.h>
+#include <Mouse.h>
 #include <EEPROM.h>
 
 #define DEBOUNCE_DELAY 10
@@ -19,6 +24,9 @@
 #define SERIAL_READ_COMMAND 0x00
 #define SERIAL_WRITE_COMMAND 0x01
 #define SERIAL_QUERY_SETTINGS_COMMAND 0x02
+
+
+int mouseResponseDelay = 10;     // response delay of the mouse, in ms
 
 
 /* --------- Button declarations and functions */
@@ -38,7 +46,7 @@ typedef struct {
 button buttons[BUTTON_COUNT];
 bool buttonReadings[BUTTON_COUNT];
 
-void initButtons(){
+void initButtons() {
   for (byte i = 0; i < BUTTON_COUNT; i++) {
     buttons[i].state = false;
     buttons[i].lastReading = false;
@@ -52,20 +60,22 @@ void initButtons(){
   }
 }
 
-void pressChars(button btn){
+void pressChars(button btn) {
   for (byte i = 0; i < MAX_CHARS_PER_BUTTON; i++) {
     Keyboard.press(btn.chars[i]);
+    Mouse.press(btn.chars[i]);
   }
 }
 
-void releaseChars(button btn){
+void releaseChars(button btn) {
   for (byte i = 0; i < MAX_CHARS_PER_BUTTON; i++) {
     Keyboard.release(btn.chars[i]);
+    Mouse.release(btn.chars[i]);
   }
 }
 
 void updateButtons() {
-  for (byte i = 0; i < BUTTON_COUNT; i++){
+  for (byte i = 0; i < BUTTON_COUNT; i++) {
     // update button readings
     buttonReadings[i] = !digitalRead(buttons[i].pin);
     if (buttonReadings[i] != buttons[i].lastReading) {
@@ -73,9 +83,14 @@ void updateButtons() {
     }
 
     // press/release buttons
-    if ((millis() - buttons[i].lastTime) > DEBOUNCE_DELAY){
+    if ((millis() - buttons[i].lastTime) > DEBOUNCE_DELAY) {
       buttons[i].state = buttonReadings[i];
       if (buttons[i].state && !buttons[i].latched) {
+
+
+        // slight mouse delay hack when double clicking
+        delay(mouseResponseDelay);
+
         pressChars(buttons[i]);
         buttons[i].latched = true;
       } else if (!buttons[i].state && buttons[i].latched) {
@@ -95,19 +110,19 @@ byte serialReadBuffer[SERIAL_BUFFER_LENGTH];
 byte serialWriteBuffer[SERIAL_BUFFER_LENGTH];
 bool dataAvailable = false;
 
-void readSerial(){
-  if (Serial.available() && !dataAvailable){
+void readSerial() {
+  if (Serial.available() && !dataAvailable) {
     Serial.readBytes(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
     dataAvailable = true;
   }
 }
 
 // not super happy with how this reads, probably an area for refactor
-void processSerialBuffer(){
+void processSerialBuffer() {
   if (serialWriteBuffer[0] == SERIAL_START_BYTE) { // start byte
     if (serialWriteBuffer[1] == SERIAL_READ_COMMAND) { // command byte
-      if (parsedIndexValid(serialWriteBuffer[2])){ // button index byte
-        for (byte i = 3; i < SERIAL_BUFFER_LENGTH; i++){
+      if (parsedIndexValid(serialWriteBuffer[2])) { // button index byte
+        for (byte i = 3; i < SERIAL_BUFFER_LENGTH; i++) {
           if (serialWriteBuffer[i] == SERIAL_END_BYTE) { // end byte
             writeSerialSwitchStatus(buttons[serialWriteBuffer[2]], SERIAL_READ_COMMAND);
             break;
@@ -115,12 +130,12 @@ void processSerialBuffer(){
         }
       }
     } else if (serialWriteBuffer[1] == SERIAL_WRITE_COMMAND) { // command byte
-      if (parsedIndexValid(serialWriteBuffer[2])){ // button index byte
+      if (parsedIndexValid(serialWriteBuffer[2])) { // button index byte
         byte newChars[MAX_CHARS_PER_BUTTON];
         wipeArray(newChars, MAX_CHARS_PER_BUTTON);
-        for (byte i = 3; i < SERIAL_BUFFER_LENGTH; i++){
-          if (serialWriteBuffer[i] == SERIAL_END_BYTE){ // end byte
-            for (byte j = 0; j < MAX_CHARS_PER_BUTTON; j++){ // write new chars
+        for (byte i = 3; i < SERIAL_BUFFER_LENGTH; i++) {
+          if (serialWriteBuffer[i] == SERIAL_END_BYTE) { // end byte
+            for (byte j = 0; j < MAX_CHARS_PER_BUTTON; j++) { // write new chars
               buttons[serialWriteBuffer[2]].chars[j] = newChars[j];
             }
             saveConfigToEEPROM();
@@ -130,9 +145,9 @@ void processSerialBuffer(){
           newChars[i - 3] = serialWriteBuffer[i];
         }
       }
-    } else if (serialWriteBuffer[1] == SERIAL_QUERY_SETTINGS_COMMAND){
-      for (byte i = 2; i < SERIAL_BUFFER_LENGTH; i++){
-        if (serialWriteBuffer[i] == SERIAL_END_BYTE){ // end byte
+    } else if (serialWriteBuffer[1] == SERIAL_QUERY_SETTINGS_COMMAND) {
+      for (byte i = 2; i < SERIAL_BUFFER_LENGTH; i++) {
+        if (serialWriteBuffer[i] == SERIAL_END_BYTE) { // end byte
           writeSerialQuery();
           break;
         }
@@ -142,22 +157,24 @@ void processSerialBuffer(){
   discardSerialBuffer();
 }
 
-void writeSerialSwitchStatus(button btn, byte command){
+void writeSerialSwitchStatus(button btn, byte command) {
   wipeArray(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
   serialWriteBuffer[0] = 0xEE;
   serialWriteBuffer[1] = command;
   serialWriteBuffer[2] = btn.index;
   byte i = 0;
-  while (i < MAX_CHARS_PER_BUTTON){
-    if (btn.chars[i] == 0x00){ break; }
-    serialWriteBuffer[i+3] = btn.chars[i];
+  while (i < MAX_CHARS_PER_BUTTON) {
+    if (btn.chars[i] == 0x00) {
+      break;
+    }
+    serialWriteBuffer[i + 3] = btn.chars[i];
     i++;
   }
-  serialWriteBuffer[i+3] = 0xFF;
-  Serial.write(serialWriteBuffer, i+4);
+  serialWriteBuffer[i + 3] = 0xFF;
+  Serial.write(serialWriteBuffer, i + 4);
 }
 
-void writeSerialQuery(){
+void writeSerialQuery() {
   wipeArray(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
   serialWriteBuffer[0] = 0xEE;
   serialWriteBuffer[1] = SERIAL_QUERY_SETTINGS_COMMAND;
@@ -167,12 +184,12 @@ void writeSerialQuery(){
   Serial.write(serialWriteBuffer, 5);
 }
 
-void discardSerialBuffer(){
+void discardSerialBuffer() {
   wipeArray(serialWriteBuffer, SERIAL_BUFFER_LENGTH);
   dataAvailable = false;
 }
 
-bool parsedIndexValid(byte index){
+bool parsedIndexValid(byte index) {
   if (index < BUTTON_COUNT) {
     return true;
   } else {
@@ -182,30 +199,30 @@ bool parsedIndexValid(byte index){
 
 
 /* -------------------------- EEPROM functions */
-void wipeEEPROM(){
+void wipeEEPROM() {
   for (int i = 0; i < EEPROM.length(); i++) {
     EEPROM.write(i, 0);
   }
 }
 
-void saveConfigToEEPROM(){
+void saveConfigToEEPROM() {
   EEPROM.update(0x00, EEPROM_INTEGRITY_BYTE);
   EEPROM.update(0x01, MAX_CHARS_PER_BUTTON);
   EEPROM.update(0x02, BUTTON_COUNT);
-  for (byte i = 0; i < BUTTON_COUNT; i++){
-    for (byte j = 0; j < MAX_CHARS_PER_BUTTON; j++){
+  for (byte i = 0; i < BUTTON_COUNT; i++) {
+    for (byte j = 0; j < MAX_CHARS_PER_BUTTON; j++) {
       int address = EEPROM_DATA_START + (i * MAX_CHARS_PER_BUTTON) + j;
       EEPROM.update(address, buttons[i].chars[j]);
     }
   }
 }
 
-void loadConfigFromEEPROM(){
+void loadConfigFromEEPROM() {
   if ((EEPROM.read(0x00) == EEPROM_INTEGRITY_BYTE) &&
       (EEPROM.read(0x01) == MAX_CHARS_PER_BUTTON) &&
       (EEPROM.read(0x02) == BUTTON_COUNT)) {
-    for (byte i = 0; i < BUTTON_COUNT; i++){
-      for (byte j = 0; j < MAX_CHARS_PER_BUTTON; j++){
+    for (byte i = 0; i < BUTTON_COUNT; i++) {
+      for (byte j = 0; j < MAX_CHARS_PER_BUTTON; j++) {
         int address = EEPROM_DATA_START + (i * MAX_CHARS_PER_BUTTON) + j;
         buttons[i].chars[j] = EEPROM.read(address);
       }
@@ -218,16 +235,18 @@ void loadConfigFromEEPROM(){
 
 
 /* ---------------------------- Misc functions */
-void wipeArray(byte *arr, int len){
-  for (int i = 0; i < len; i++){
-    arr[i] = 0;   
+void wipeArray(byte *arr, int len) {
+  for (int i = 0; i < len; i++) {
+    arr[i] = 0;
   }
 }
 
 
 /* ---------------------------- Setup and loop */
 void setup() {
+  Mouse.begin();
   Keyboard.begin();
+
   Serial.begin(SERIAL_BAUD_RATE);
   Serial.setTimeout(10);
   initButtons();
@@ -236,11 +255,10 @@ void setup() {
 
 void loop() {
   updateButtons();
-  
+
   if (dataAvailable) {
     processSerialBuffer();
   } else {
     readSerial();
   }
 }
-
