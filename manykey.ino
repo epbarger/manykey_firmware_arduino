@@ -4,6 +4,8 @@
    See LICENSE (MIT)
 
    V1.1 Implement Intended Mouse Support    (R.Hirst 31/01/2022)
+   WARNING  MIDDLE_MOUSE HAS ISSUES!!!
+   
 */
 
 
